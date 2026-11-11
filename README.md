@@ -22,6 +22,6 @@ Die Begleiter kämpfen selbstständig. Besiegte Gegner lassen Splitter zurück. 
 
 Tags wie `v0.1.0` starten den Windows-Release-Workflow. Er exportiert das Spiel und erstellt `Schattenbund-Setup.exe`.
 
-## Technik
+## Grafik
 
-Godot 4, GDScript, selbst gezeichnete 2D-Isometrie. Keine externen Asset-Abhängigkeiten.
+Gemalte Mondlicht-Kulisse und freigestellte, handgemalte Figuren. Die Spieloberfläche und Kampf-Logik sind in Godot umgesetzt; die Asset-Dateien liegen lokal im Projekt und benötigen zur Laufzeit keine Verbindung.

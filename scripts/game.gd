@@ -5,6 +5,15 @@ const H := 720.0
 const TILE_W := 64.0
 const TILE_H := 32.0
 const SAVE_PATH := "user://save.cfg"
+const FIELD_BACKGROUND: Texture2D = preload("res://assets/field_background.jpg")
+const SPRITES := {
+	"hero": preload("res://assets/hero.webp"),
+	"ranger": preload("res://assets/ranger.webp"),
+	"guardian": preload("res://assets/guardian.webp"),
+	"stalker": preload("res://assets/stalker.webp"),
+	"acolyte": preload("res://assets/acolyte.webp"),
+	"warden": preload("res://assets/warden.webp")
+}
 
 var mode := "title"
 var player := Vector2(-5.0, 4.0)
@@ -23,6 +32,7 @@ var message := ""
 var message_timer := 0.0
 var paused := false
 var intro_seen := false
+var animation_time := 0.0
 
 const TREE_POSITIONS := [Vector2(-11,-8), Vector2(-9,-10), Vector2(-12,-4), Vector2(-11,1), Vector2(-10,7), Vector2(-8,10), Vector2(-4,-10), Vector2(1,-10), Vector2(9,-9), Vector2(12,-7), Vector2(11,-1), Vector2(12,3), Vector2(9,9), Vector2(5,10), Vector2(-2,10)]
 const RUIN_POSITIONS := [Vector2(3,-8), Vector2(4,-8), Vector2(8,-8), Vector2(9,-8), Vector2(3,-7), Vector2(9,-7), Vector2(3,-6), Vector2(9,-6), Vector2(3,-5), Vector2(9,-5), Vector2(4,-4), Vector2(8,-4)]
@@ -33,6 +43,7 @@ func _ready() -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	animation_time += delta
 	attack_timer = maxf(0.0, attack_timer - delta)
 	spell_timer = maxf(0.0, spell_timer - delta)
 	dodge_timer = maxf(0.0, dodge_timer - delta)
@@ -112,13 +123,13 @@ func _update_field(delta: float) -> void:
 	if Input.is_action_pressed("move_left"): axes.x -= 1.0
 	if Input.is_action_pressed("move_down"): axes.y += 1.0
 	if Input.is_action_pressed("move_up"): axes.y -= 1.0
-	var world_motion := Vector2(axes.x + axes.y, -axes.x + axes.y).normalized()
+	var world_motion := axes.normalized()
 	var speed := 4.4 if dodge_timer <= 0.0 else 10.0
 	if world_motion.length_squared() > 0.0:
 		player += world_motion * speed * delta
-		player.x = clampf(player.x, -12.0, 11.0)
-		player.y = clampf(player.y, -10.0, 10.0)
-	camera = camera.lerp(player, minf(delta * 5.0, 1.0))
+		player.x = clampf(player.x, -11.0, 13.0)
+		player.y = clampf(player.y, -9.0, 4.0)
+	camera = Vector2.ZERO
 	for enemy in enemies:
 		enemy.hit = maxf(0.0, enemy.hit - delta)
 		enemy.cooldown -= delta
@@ -262,23 +273,10 @@ func _draw() -> void:
 		_draw_message()
 
 func _iso(pos: Vector2) -> Vector2:
-	return Vector2(W * 0.5 + (pos.x-camera.x-pos.y+camera.y) * TILE_W * 0.5, 356.0 + (pos.x-camera.x+pos.y-camera.y) * TILE_H * 0.5)
+	return Vector2(W * 0.5 + (pos.x-camera.x) * 44.0, 385.0 + (pos.y-camera.y) * 28.0)
 
 func _draw_field() -> void:
-	draw_rect(Rect2(0,0,W,H), Color("111b1d"))
-	for x in range(-17, 18):
-		for y in range(-15, 16):
-			var world := camera + Vector2(x,y)
-			var screen := _iso(world)
-			var tone := int(absf(sin(world.x*8.17 + world.y*12.41)) * 4.0)
-			var base := Color("263d35") if tone < 2 else Color("2b4037")
-			if absf(world.x + world.y - 0.5) < 1.25 and world.x > -8.0 and world.x < 6.0:
-				base = Color("47463a") if tone % 2 == 0 else Color("514d3d")
-			draw_colored_polygon(PackedVector2Array([screen+Vector2(0,-16),screen+Vector2(32,0),screen+Vector2(0,16),screen+Vector2(-32,0)]), base)
-			if tone == 1:
-				draw_line(screen+Vector2(-8,3),screen+Vector2(4,-2),Color(0.62,0.65,0.48,0.16),1.0)
-	_draw_forest()
-	_draw_ruin()
+	draw_texture_rect(FIELD_BACKGROUND, Rect2(0,0,W,H), false)
 	for drop in loot: _draw_shard(_iso(drop.pos))
 	for enemy in enemies: _draw_enemy(enemy)
 	for companion in companions: _draw_actor(companion.pos, companion.kind, 1.0)
@@ -320,47 +318,29 @@ func _draw_ruin() -> void:
 
 func _draw_actor(pos: Vector2, kind: String, scale: float) -> void:
 	var p := _iso(pos)
-	_draw_ellipse(p+Vector2(2,12),Vector2(16,6),Color(0,0,0,0.4))
-	var body := Color("bd7c3e")
-	var armor := Color("39424a")
-	if kind == "hero": body = Color("8b542c"); armor = Color("d1a263")
-	if kind == "ranger": body = Color("263e38"); armor = Color("53715c")
-	if kind == "guardian": body = Color("584a38"); armor = Color("778087")
-	draw_colored_polygon(PackedVector2Array([p+Vector2(-12,1),p+Vector2(0,-5),p+Vector2(12,1),p+Vector2(8,10),p+Vector2(-8,10)]),body)
-	draw_rect(Rect2(p+Vector2(-7,-11),Vector2(14,14)),armor)
-	draw_circle(p+Vector2(0,-15),7,Color("d2ad88"))
-	draw_arc(p+Vector2(0,-16),8,PI,TAU,12,Color("302b28"),5.0)
-	if kind == "hero":
-		draw_colored_polygon(PackedVector2Array([p+Vector2(-6,-5),p+Vector2(-18,8),p+Vector2(-9,11),p+Vector2(0,3)]),Color("a34e31"))
-		draw_line(p+Vector2(7,-4),p+Vector2(18,-17),Color("e0ddcf"),3.0)
-		draw_line(p+Vector2(7,-4),p+Vector2(14,-10),Color("805c37"),4.0)
-	elif kind == "ranger":
-		draw_arc(p+Vector2(-10,-1),9,-PI*0.7,PI*0.7,12,Color("bd9b68"),2.0)
-		draw_line(p+Vector2(-3,-5),p+Vector2(-15,2),Color("c9ac72"),1.4)
-	elif kind == "guardian":
-		draw_circle(p+Vector2(12,0),9,Color("667078"))
-		draw_circle(p+Vector2(12,0),5,Color("b3aa91"))
+	var size := Vector2(100,132)
+	if kind == "guardian": size = Vector2(114,126)
+	var bob := sin(animation_time*3.1 + p.x*0.01) * 2.0
+	_draw_ellipse(p+Vector2(0,3),Vector2(size.x*0.28,9),Color(0,0,0,0.42))
+	draw_texture_rect(SPRITES[kind], Rect2(p.x-size.x*0.5,p.y-size.y+bob,size.x,size.y),false)
 	if kind == "hero" and invulnerable > 0.0:
-		draw_arc(p+Vector2(0,1),21,0,TAU,24,Color(0.72,0.84,1.0,0.6),2.0)
+		draw_arc(p+Vector2(0,-size.y*0.45),size.x*0.52,0,TAU,32,Color(0.72,0.84,1.0,0.55),2.0)
 
 func _draw_enemy(enemy: Dictionary) -> void:
 	var p: Vector2 = _iso(enemy.pos)
 	var boss: bool = enemy.kind == "warden"
-	var s := 1.45 if boss else 1.0
-	_draw_ellipse(p+Vector2(3,13*s),Vector2(18*s,6*s),Color(0,0,0,0.43))
+	var s := 1.0
+	var size := Vector2(94,84)
+	if enemy.kind == "acolyte": size = Vector2(104,137)
+	if boss: size = Vector2(170,184)
+	_draw_ellipse(p+Vector2(0,3),Vector2(size.x*0.28,10),Color(0,0,0,0.48))
 	var flash: bool = enemy.hit > 0.0
-	var fur := Color("ece3c9") if flash else (Color("574c55") if boss else Color("665852"))
-	draw_colored_polygon(PackedVector2Array([p+Vector2(-13*s,2),p+Vector2(-2*s,-8*s),p+Vector2(8*s,-5*s),p+Vector2(15*s,4*s),p+Vector2(6*s,10*s),p+Vector2(-9*s,9*s)]),fur)
-	draw_circle(p+Vector2(8*s,-7*s),6*s,Color("453d45"))
-	draw_colored_polygon(PackedVector2Array([p+Vector2(8*s,-14*s),p+Vector2(4*s,-23*s),p+Vector2(13*s,-15*s)]),Color("a78b73"))
-	draw_circle(p+Vector2(11*s,-8*s),2.2*s,Color("ff674e"))
-	draw_line(p+Vector2(-6*s,6*s),p+Vector2(-11*s,14*s),Color("362f32"),3.0*s)
-	if enemy.kind == "acolyte":
-		draw_colored_polygon(PackedVector2Array([p+Vector2(-8,-6),p+Vector2(0,-25),p+Vector2(11,-6),p+Vector2(5,5)]),Color("563d60"))
-		draw_circle(p+Vector2(1,-23),3,Color("b780f1"))
+	if flash: draw_circle(p-Vector2(0,size.y*0.45),maxf(size.x,size.y)*0.48,Color(1.0,0.77,0.62,0.24))
+	var bob := sin(animation_time*2.4 + p.x*0.02) * 2.5
+	draw_texture_rect(SPRITES[enemy.kind],Rect2(p.x-size.x*0.5,p.y-size.y+bob,size.x,size.y),false)
 	if boss:
-		draw_rect(Rect2(p+Vector2(-30,-51),Vector2(60,6)),Color("251b21"))
-		draw_rect(Rect2(p+Vector2(-29,-50),Vector2(58.0*maxf(enemy.hp,0.0)/enemy.max_hp,4)),Color("9e3440"))
+		draw_rect(Rect2(p+Vector2(-43,-size.y-12),Vector2(86,7)),Color("251b21"))
+		draw_rect(Rect2(p+Vector2(-41,-size.y-10),Vector2(82.0*maxf(enemy.hp,0.0)/enemy.max_hp,3)),Color("b23c46"))
 
 func _draw_shard(p: Vector2) -> void:
 	draw_circle(p+Vector2(0,4),11,Color(0.59,0.31,0.83,0.22))
@@ -401,15 +381,8 @@ func _draw_hud() -> void:
 		draw_string(ThemeDB.fallback_font,Vector2(865,31),"TOR GESICHERT",HORIZONTAL_ALIGNMENT_LEFT,-1,15,Color("a3d099"))
 
 func _draw_title() -> void:
-	draw_rect(Rect2(0,0,W,H),Color("111b1d"))
-	for i in range(16):
-		var x := float(i)*96.0
-		draw_colored_polygon(PackedVector2Array([Vector2(x-100,480),Vector2(x+160,190+sin(float(i))*35),Vector2(x+260,480)]),Color("1b3029"))
-	for i in range(8):
-		var x := 595.0 + float(i)*18.0
-		draw_rect(Rect2(x,278,13,207),Color("47483f"))
-		draw_rect(Rect2(x-3,276,19,14),Color("716a56"))
-	draw_rect(Rect2(726,319,70,168),Color("202323"))
+	draw_texture_rect(FIELD_BACKGROUND,Rect2(0,0,W,H),false)
+	draw_rect(Rect2(0,0,W,H),Color(0.025,0.04,0.045,0.57))
 	draw_circle(Vector2(1040,95),44,Color("d1d0bd")); draw_circle(Vector2(1055,79),43,Color("111b1d"))
 	draw_string(ThemeDB.fallback_font,Vector2(120,191),"SCHATTENBUND",HORIZONTAL_ALIGNMENT_LEFT,-1,54,Color("e1d0ab"))
 	draw_string(ThemeDB.fallback_font,Vector2(124,229),"Ein altes Tor. Eine erwachende Finsternis.",HORIZONTAL_ALIGNMENT_LEFT,-1,20,Color("abb0a1"))
