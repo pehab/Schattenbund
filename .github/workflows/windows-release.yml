@@ -1,0 +1,55 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Godot and export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.3.0
+          use-dotnet: false
+          include-templates: true
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+
+      - name: Import project resources
+        run: godot --headless --editor --path . --quit
+
+      - name: Export Windows game
+        run: godot --headless --path . --export-release "Windows Desktop" build/Schattenbund.exe
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '0.1.0' }
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' "/DMyAppVersion=$version" installer\Schattenbund.iss
+
+      - name: Upload CI installer
+        if: startsWith(github.ref, 'refs/heads/') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Schattenbund-Windows-Installer
+          path: build/Schattenbund-Setup.exe
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Schattenbund ${{ github.ref_name }}
+          generate_release_notes: true
+          files: build/Schattenbund-Setup.exe
