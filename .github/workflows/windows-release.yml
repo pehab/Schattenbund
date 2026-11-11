@@ -27,7 +27,11 @@ jobs:
         run: choco install innosetup --yes --no-progress
 
       - name: Import project resources
-        run: godot --headless --editor --path . --quit
+        shell: pwsh
+        run: |
+          $godot = (Get-Command godot).Source
+          $process = Start-Process -FilePath $godot -ArgumentList '--headless --editor --path . --quit' -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 0) { throw "Godot import exited with code $($process.ExitCode)" }
 
       - name: Prepare build folder
         run: New-Item -ItemType Directory -Force build | Out-Null
@@ -35,12 +39,9 @@ jobs:
       - name: Export Windows game
         shell: pwsh
         run: |
-          Write-Host "Godot command:" (Get-Command godot | Format-List Name,CommandType,Source | Out-String)
-          Write-Host "Godot version:" (godot --headless --version)
-          Write-Host "Working directory:" (Get-Location)
-          godot --headless --path . --export-release "Windows Desktop" --verbose
-          Write-Host "Godot exit code:" $LASTEXITCODE
-          Get-ChildItem -Force -Recurse build
+          $godot = (Get-Command godot).Source
+          $process = Start-Process -FilePath $godot -ArgumentList '--headless --path . --export-release "Windows Desktop"' -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 0) { throw "Godot export exited with code $($process.ExitCode)" }
           if (!(Test-Path build\Schattenbund.exe)) { throw "Godot did not create build/Schattenbund.exe" }
 
       - name: Build installer
