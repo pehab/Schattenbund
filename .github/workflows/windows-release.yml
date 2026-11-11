@@ -35,9 +35,12 @@ jobs:
       - name: Export Windows game
         shell: pwsh
         run: |
-          $godot = (Get-Command godot).Source
-          Write-Host "Godot executable: $godot"
-          & $godot --headless --path . --export-release "Windows Desktop"
+          Write-Host "Godot command:" (Get-Command godot | Format-List Name,CommandType,Source | Out-String)
+          Write-Host "Godot version:" (godot --headless --version)
+          Write-Host "Working directory:" (Get-Location)
+          godot --headless --path . --export-release "Windows Desktop" --verbose
+          Write-Host "Godot exit code:" $LASTEXITCODE
+          Get-ChildItem -Force -Recurse build
           if (!(Test-Path build\Schattenbund.exe)) { throw "Godot did not create build/Schattenbund.exe" }
 
       - name: Build installer
@@ -61,3 +64,4 @@ jobs:
           name: Schattenbund ${{ github.ref_name }}
           generate_release_notes: true
           files: build/Schattenbund-Setup.exe
+
