@@ -29,8 +29,14 @@ jobs:
       - name: Import project resources
         run: godot --headless --editor --path . --quit
 
+      - name: Prepare build folder
+        run: New-Item -ItemType Directory -Force build | Out-Null
+
       - name: Export Windows game
-        run: godot --headless --path . --export-release "Windows Desktop" build/Schattenbund.exe
+        shell: pwsh
+        run: |
+          godot --headless --path . --export-release "Windows Desktop" build/Schattenbund.exe
+          if (!(Test-Path build\Schattenbund.exe)) { throw "Godot did not create build/Schattenbund.exe" }
 
       - name: Build installer
         shell: pwsh
@@ -53,3 +59,4 @@ jobs:
           name: Schattenbund ${{ github.ref_name }}
           generate_release_notes: true
           files: build/Schattenbund-Setup.exe
+
